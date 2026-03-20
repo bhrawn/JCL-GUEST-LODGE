@@ -7,6 +7,7 @@ app.use(express.json());
 
 // ─── In-Memory Database ────────────────────────────────────────────
 let db;
+let dbReady = null;
 
 const roomImages = {
   Standard: [
@@ -30,7 +31,7 @@ const roomImages = {
   ],
 };
 
-const branches = [
+const branchData = [
   { name: 'Lapaz', prefix: 'LP', rooms: 24, description: 'Our flagship branch in the heart of Lapaz. Comfortable rooms with easy access to local markets and transportation hubs.', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=500&fit=crop&q=80' },
   { name: 'Danfa', prefix: 'DN', rooms: 11, description: 'A serene retreat surrounded by nature. Perfect for guests seeking a quieter, more peaceful stay away from the city.', image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&h=500&fit=crop&q=80' },
   { name: 'Spintex', prefix: 'SP', rooms: 16, description: 'Located on bustling Spintex Road. Ideal for business travelers and visitors to the commercial district.', image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&h=500&fit=crop&q=80' },
@@ -48,76 +49,6 @@ function pickRoomType(index, total) {
   if (ratio < 0.65) return roomTypes[0];
   if (ratio < 0.85) return roomTypes[1];
   return roomTypes[2];
-}
-
-async function getDb() {
-  if (db) return db;
-
-  const SQL = await initSqlJs();
-  db = new SQL.Database();
-
-  db.run(`CREATE TABLE IF NOT EXISTS branches (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    description TEXT,
-    image_url TEXT
-  )`);
-  db.run(`CREATE TABLE IF NOT EXISTS rooms (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    branch_id INTEGER NOT NULL REFERENCES branches(id),
-    room_number TEXT NOT NULL,
-    type TEXT NOT NULL DEFAULT 'Standard',
-    price_per_night REAL NOT NULL,
-    is_available INTEGER NOT NULL DEFAULT 1,
-    image_url TEXT,
-    UNIQUE(branch_id, room_number)
-  )`);
-  db.run(`CREATE TABLE IF NOT EXISTS bookings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    reference TEXT NOT NULL UNIQUE,
-    room_id INTEGER NOT NULL REFERENCES rooms(id),
-    guest_name TEXT NOT NULL,
-    guest_email TEXT NOT NULL,
-    guest_phone TEXT NOT NULL,
-    check_in TEXT NOT NULL,
-    check_out TEXT NOT NULL,
-    total_price REAL NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending_payment',
-    payment_status TEXT NOT NULL DEFAULT 'unpaid',
-    amount_paid REAL NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`);
-  db.run(`CREATE TABLE IF NOT EXISTS payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    booking_id INTEGER NOT NULL REFERENCES bookings(id),
-    paystack_reference TEXT NOT NULL UNIQUE,
-    amount REAL NOT NULL,
-    currency TEXT NOT NULL DEFAULT 'GHS',
-    status TEXT NOT NULL DEFAULT 'pending',
-    paid_at TEXT,
-    channel TEXT,
-    paystack_data TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`);
-
-  // Seed data
-  const existingBranches = all('SELECT COUNT(*) as c FROM branches');
-  if (existingBranches[0].c === 0) {
-    for (const branch of branches) {
-      db.run('INSERT INTO branches (name, description, image_url) VALUES (?, ?, ?)', [branch.name, branch.description, branch.image]);
-      const branchId = db.exec("SELECT last_insert_rowid() as id")[0].values[0][0];
-      for (let i = 1; i <= branch.rooms; i++) {
-        const num = String(i).padStart(2, '0');
-        const roomNumber = `${branch.prefix}-${num}`;
-        const roomType = pickRoomType(i - 1, branch.rooms);
-        const images = roomImages[roomType.type];
-        const image = images[(i - 1) % images.length];
-        db.run('INSERT INTO rooms (branch_id, room_number, type, price_per_night, is_available, image_url) VALUES (?, ?, ?, ?, 1, ?)', [branchId, roomNumber, roomType.type, roomType.price, image]);
-      }
-    }
-  }
-
-  return db;
 }
 
 function all(sql, params = []) {
@@ -140,14 +71,52 @@ function run(sql, params = []) {
   return { lastInsertRowid: lastId };
 }
 
-// Ensure DB is initialized before handling requests
+async function initDb() {
+  if (db) return;
+
+  // Load WASM from CDN — fixes Vercel serverless bundling issue
+  const SQL = await initSqlJs({
+    locateFile: (file) => `https://sql.js.org/dist/${file}`,
+  });
+  db = new SQL.Database();
+
+  db.run(`CREATE TABLE IF NOT EXISTS branches (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, description TEXT, image_url TEXT)`);
+  db.run(`CREATE TABLE IF NOT EXISTS rooms (id INTEGER PRIMARY KEY AUTOINCREMENT, branch_id INTEGER NOT NULL REFERENCES branches(id), room_number TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'Standard', price_per_night REAL NOT NULL, is_available INTEGER NOT NULL DEFAULT 1, image_url TEXT, UNIQUE(branch_id, room_number))`);
+  db.run(`CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY AUTOINCREMENT, reference TEXT NOT NULL UNIQUE, room_id INTEGER NOT NULL REFERENCES rooms(id), guest_name TEXT NOT NULL, guest_email TEXT NOT NULL, guest_phone TEXT NOT NULL, check_in TEXT NOT NULL, check_out TEXT NOT NULL, total_price REAL NOT NULL, status TEXT NOT NULL DEFAULT 'pending_payment', payment_status TEXT NOT NULL DEFAULT 'unpaid', amount_paid REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')))`);
+  db.run(`CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, booking_id INTEGER NOT NULL REFERENCES bookings(id), paystack_reference TEXT NOT NULL UNIQUE, amount REAL NOT NULL, currency TEXT NOT NULL DEFAULT 'GHS', status TEXT NOT NULL DEFAULT 'pending', paid_at TEXT, channel TEXT, paystack_data TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))`);
+
+  // Seed if empty
+  const count = db.exec("SELECT COUNT(*) FROM branches")[0]?.values[0][0] || 0;
+  if (count === 0) {
+    for (const branch of branchData) {
+      db.run('INSERT INTO branches (name, description, image_url) VALUES (?, ?, ?)', [branch.name, branch.description, branch.image]);
+      const branchId = db.exec("SELECT last_insert_rowid() as id")[0].values[0][0];
+      for (let i = 1; i <= branch.rooms; i++) {
+        const num = String(i).padStart(2, '0');
+        const roomNumber = `${branch.prefix}-${num}`;
+        const roomType = pickRoomType(i - 1, branch.rooms);
+        const images = roomImages[roomType.type];
+        const image = images[(i - 1) % images.length];
+        db.run('INSERT INTO rooms (branch_id, room_number, type, price_per_night, is_available, image_url) VALUES (?, ?, ?, ?, 1, ?)', [branchId, roomNumber, roomType.type, roomType.price, image]);
+      }
+    }
+  }
+}
+
+// Singleton promise so concurrent requests don't double-init
+function getDb() {
+  if (!dbReady) dbReady = initDb();
+  return dbReady;
+}
+
+// Ensure DB is ready before every request
 app.use(async (req, res, next) => {
   try {
     await getDb();
     next();
   } catch (err) {
     console.error('DB init error:', err);
-    res.status(500).json({ error: 'Database initialization failed' });
+    res.status(500).json({ error: 'Database initialization failed', detail: err.message });
   }
 });
 
