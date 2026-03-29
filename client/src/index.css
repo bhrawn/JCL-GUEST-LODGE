@@ -325,9 +325,9 @@ img { max-width: 100%; display: block; }
 
 .bw-field label {
   font-family: var(--mono);
-  font-size: 0.55rem;
+  font-size: 0.6rem;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   color: var(--accent);
   font-weight: 700;
 }
@@ -3081,141 +3081,254 @@ img { max-width: 100%; display: block; }
 }
 
 @media (max-width: 768px) {
-  /* Branch hero shorter on tablet */
-  .branch-hero { height: 380px; }
-  /* Gallery section padding */
+  .branch-hero { height: 360px; }
   .gallery-section { padding: 3.5rem 0 3rem; }
+  .bw-cal-popup {
+    max-width: calc(100vw - 2rem);
+    min-width: 0;
+    width: calc(100vw - 2rem);
+  }
 }
 
+/* ─────────────────────────────────────────
+   PHONE  ≤ 640px
+───────────────────────────────────────── */
 @media (max-width: 640px) {
+
   /* ── Layout ── */
   .container { padding: 0 1rem; }
-  .page { padding: 2rem 0 4rem; }
-  .section { padding: 3rem 0; }
-  .section-header { margin-bottom: 2rem; }
-  .section-subtitle { font-size: 0.9rem; }
+  .page { padding: 1.5rem 0 3.5rem; }
+  .section { padding: 2.5rem 0; }
+  .section-header { margin-bottom: 1.75rem; }
+  .section-title { font-size: 1.55rem; }
+  .section-subtitle { font-size: 0.88rem; }
 
   /* ── Navbar ── */
-  .navbar-inner { height: 54px; }
-  .app > main { padding-top: 80px; }
-  .home-page { margin-top: -80px; }
+  .navbar-inner { height: 52px; }
+  .app > main { padding-top: 76px; }
+  .home-page { margin-top: -76px; }
 
-  /* ── Hero ── */
-  .hero-content { padding-top: 5.5rem; padding-bottom: 4rem; }
-  .hero-content .booking-widget { margin-top: 1.75rem; }
-  .hero-orb-1 { width: 260px; height: 260px; }
-  .hero-orb-2 { width: 200px; height: 200px; }
+  /* ── Hero: align-start so widget is never cut off below fold ── */
+  .hero {
+    align-items: flex-start;
+    min-height: 100svh; /* safe-area viewport height on mobile browsers */
+  }
+  .hero-content {
+    padding-top: 5rem;
+    padding-bottom: 2.5rem;
+    align-items: center;
+  }
+  .hero-content > * + * { margin-top: 0.65rem; }
+  .hero-content .hero-headline { margin-top: 1rem; }
+  .hero-content .hero-subtext  { margin-top: 0.5rem; }
+  .hero-content .booking-widget { margin-top: 1.25rem; }
+
+  /* Shrink decorative orbs */
+  .hero-orb-1 { width: 220px; height: 220px; left: -60px; top: 5%; }
+  .hero-orb-2 { width: 180px; height: 180px; right: -40px; bottom: 10%; }
   .hero-orb-3 { display: none; }
-  .hero-pill { font-size: 0.62rem; padding: 0.5rem 1rem; }
-  .hero-subtext { font-size: 0.88rem; }
+
+  /* Hero text */
+  .hero-pill {
+    font-size: 0.65rem;
+    padding: 0.45rem 0.85rem;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+  .hero-subtext { font-size: 0.87rem; max-width: 100%; }
   .hero-scroll-indicator { display: none; }
 
-  /* ── Booking widget (mobile stack) ── */
+  /* ── Booking widget — full-width vertical stack ── */
   .booking-widget {
     flex-direction: column;
-    padding: 0.65rem;
+    padding: 0.6rem;
     border-radius: 14px;
     max-width: 100%;
+    gap: 0;
   }
-  .bw-field { padding: 0.45rem 0.25rem; }
-  .bw-divider { width: 100%; height: 1px; margin: 0.15rem 0; }
-  .bw-submit { padding: 0.85rem 1.25rem; border-radius: 10px; margin-top: 0.5rem; }
-  .bw-guests { gap: 0.75rem; }
+  .bw-field {
+    padding: 0.6rem 0.5rem;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+  }
+  .bw-field:focus-within { background: rgba(255,255,255,0.06); }
+  .bw-field label {
+    font-size: 0.62rem;
+    margin-bottom: 0.15rem;
+  }
+  .bw-date-display,
+  .bw-dropdown-trigger,
+  .bw-field input[type='number'] {
+    font-size: 0.88rem;
+  }
+  .bw-divider { width: 100%; height: 1px; margin: 0.1rem 0; }
+  .bw-submit {
+    padding: 0.9rem 1rem;
+    border-radius: 10px;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    height: 48px;
+  }
+  .bw-guests { gap: 1rem; }
+  .bw-guests input[type='number'] { font-size: 0.88rem; width: 2.5rem; }
 
   /* ── Grid ── */
   .grid-3 { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
 
   /* ── Branch hero ── */
-  .branch-hero { height: 300px; }
-  .branch-hero-title { font-size: 1.6rem; }
+  .branch-hero { height: 280px; }
+  .branch-hero-title { font-size: 1.5rem; }
   .branch-hero-sub { font-size: 0.82rem; }
-  .branch-hero-content { padding-bottom: 1.5rem; }
+  .branch-hero-content { padding-bottom: 1.25rem; }
   .branch-filter-row { flex-wrap: wrap; gap: 0.5rem; }
 
+  /* ── Cards ── */
+  .card-img { height: 195px; }
+  .card-body { padding: 1.1rem; }
+  .card-body h3 { font-size: 1.05rem; }
+
   /* ── Gallery ── */
-  .gallery-section { padding: 3rem 0 2.5rem; }
-  .gallery-slider { margin: 0; border-radius: 0; }
-  .gallery-track { border-radius: 12px; }
-  .gallery-arrow { width: 36px; height: 36px; }
+  .gallery-section { padding: 2.5rem 0 2rem; }
+  .gallery-slider { margin: 0; }
+  .gallery-track { border-radius: 10px; }
+  .gallery-arrow {
+    width: 38px; height: 38px;
+  }
   .gallery-arrow--prev { left: 8px; }
   .gallery-arrow--next { right: 8px; }
   .gallery-thumb { width: 52px; height: 36px; }
+  .gallery-thumbs { gap: 0.35rem; }
 
   /* ── Features ── */
-  .features-grid { grid-template-columns: 1fr; gap: 1rem; }
-  .feature-card { padding: 1.5rem; }
+  .features-grid { grid-template-columns: 1fr; gap: 0.85rem; }
+  .feature-card { padding: 1.25rem; }
+  .feature-card h3 { font-size: 0.95rem; }
+  .feature-card p { font-size: 0.82rem; }
 
   /* ── Steps ── */
-  .steps-container { flex-direction: column; gap: 1rem; }
+  .steps-container { flex-direction: column; gap: 0.75rem; }
   .step-wrapper { flex-direction: column; }
-  .step-card { width: 100%; max-width: 100%; padding: 1.75rem 1.25rem; }
-  .step-connector { transform: rotate(90deg); padding: 0.25rem 0; }
+  .step-card { width: 100%; max-width: 100%; padding: 1.5rem 1rem; }
+  .step-number { font-size: 2rem; }
+  .step-card h3 { font-size: 1rem; }
+  .step-card p { font-size: 0.82rem; }
+  .step-connector { transform: rotate(90deg); padding: 0; }
 
   /* ── Testimonials ── */
-  .testimonial-card { padding: 1.5rem; }
-  .testimonial-text { font-size: 0.92rem; }
-  .testimonial-slide { padding: 0 0.25rem; }
+  .testimonial-card { padding: 1.25rem; }
+  .testimonial-text { font-size: 0.88rem; margin-bottom: 1.25rem; }
+  .testimonial-slide { padding: 0; }
 
   /* ── CTA ── */
-  .cta-box { padding: 2.5rem 1.25rem; border-radius: 18px; }
-  .cta-box h2 { font-size: 1.4rem; }
-  .cta-box p { font-size: 0.9rem; }
-  .hero-btn-primary { height: 46px; padding: 0 1.5rem; font-size: 0.82rem; }
-
-  /* ── Cards ── */
-  .card-img { height: 200px; }
-  .card-body { padding: 1.25rem; }
-
-  /* ── Page header ── */
-  .page-header h1 { font-size: 1.5rem; }
+  .cta-box { padding: 2rem 1rem; border-radius: 16px; }
+  .cta-box h2 { font-size: 1.3rem; }
+  .cta-box p { font-size: 0.87rem; margin-bottom: 1.25rem; }
+  .hero-btn-primary { height: 48px; padding: 0 1.5rem; font-size: 0.85rem; }
 
   /* ── Room detail ── */
-  .rd-page { padding-top: 1.25rem; }
-  .rd-layout { gap: 1.25rem; }
-  .rd-title { font-size: 1.5rem; }
-  .rd-price { font-size: 1.4rem; }
-  .rd-amenities-grid { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-  .rd-footer { flex-direction: column; align-items: flex-start; }
-  .rd-book-btn { width: 100%; justify-content: center; }
+  .rd-page { padding-top: 1rem; }
+  .rd-layout { gap: 1rem; }
+  .rd-title { font-size: 1.4rem; }
+  .rd-description { font-size: 0.85rem; margin-bottom: 1.25rem; }
+  .rd-price { font-size: 1.35rem; }
+  .rd-amenities-grid { grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+  .rd-amenity { padding: 0.55rem 0.7rem; font-size: 0.78rem; }
+  .rd-footer { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+  .rd-book-btn { width: 100%; justify-content: center; height: 48px; }
 
   /* ── Booking form ── */
-  .booking-form { padding: 1.25rem; }
-  .room-summary-img { height: 180px; }
+  .booking-form { padding: 1.1rem; }
+  .booking-form h2 { font-size: 1.2rem; }
+  .room-summary-img { height: 170px; }
 
   /* ── Dashboard ── */
-  .dashboard-stats { grid-template-columns: 1fr 1fr; }
+  .dashboard-stats { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
   .dashboard-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+  .stat-value { font-size: 1.75rem; }
   .tab-bar { width: 100%; }
   .tab { flex: 1; text-align: center; font-size: 0.78rem; padding: 0.5rem; }
   .table-wrapper { font-size: 0.78rem; }
 
   /* ── Footer ── */
-  .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
+  .footer { padding: 2.5rem 0 0; }
+  .footer-grid { grid-template-columns: 1fr; gap: 1.75rem; }
   .footer-bottom { flex-direction: column; gap: 0.5rem; text-align: center; }
-  .footer { padding: 3rem 0 0; }
+  .footer-tagline { font-size: 0.82rem; }
   .footer-socials { flex-wrap: wrap; }
+  .footer-col h4 { margin-bottom: 0.75rem; }
+  .footer-col ul { gap: 0.45rem; }
 
-  /* ── Steps bar (booking flow) ── */
+  /* ── Booking flow steps bar ── */
   .steps-bar { gap: 0; flex-wrap: wrap; justify-content: center; }
-  .step-line { width: 30px; margin: 0 0.5rem; }
+  .step-line { width: 24px; margin: 0 0.4rem; }
   .step span:not(.step-num) { display: none; }
+
+  /* ── Back link ── */
+  .back-link { font-size: 0.8rem; }
 }
 
+/* ─────────────────────────────────────────
+   SMALL PHONES  ≤ 480px  (iPhone SE, Galaxy A)
+───────────────────────────────────────── */
 @media (max-width: 480px) {
-  /* ── Extra small phones ── */
-  .container { padding: 0 0.75rem; }
-  .hero-pill { font-size: 0.58rem; letter-spacing: 0.1em; }
-  .hero-subtext { font-size: 0.85rem; max-width: 100%; }
-  .section-title { font-size: 1.5rem; }
-  .booking-widget { border-radius: 12px; }
-  .bw-submit { font-size: 0.78rem; }
-  .branch-hero { height: 260px; }
-  .branch-hero-title { font-size: 1.35rem; }
-  .card-img { height: 180px; }
-  .rd-amenities-grid { grid-template-columns: 1fr; }
-  .cta-box { padding: 2rem 1rem; }
-  .testimonial-card { padding: 1.25rem; }
+  .container { padding: 0 0.85rem; }
+
+  /* Hero */
+  .hero-content { padding-top: 4.5rem; padding-bottom: 2rem; }
+  .hero-pill { font-size: 0.62rem; padding: 0.4rem 0.75rem; }
+  .hero-subtext { font-size: 0.83rem; }
+
+  /* Booking widget */
+  .booking-widget { padding: 0.5rem; border-radius: 12px; }
+  .bw-field { padding: 0.55rem 0.4rem; }
+  .bw-submit { font-size: 0.82rem; }
+
+  /* Calendar popup — must not exceed screen width */
+  .bw-cal-popup {
+    min-width: 0;
+    width: calc(100vw - 1.75rem);
+    padding: 0.85rem;
+  }
+  .bw-cal-day { font-size: 0.74rem; }
+
+  /* Branch hero */
+  .branch-hero { height: 240px; }
+  .branch-hero-title { font-size: 1.3rem; }
+  .branch-hero-sub { display: none; } /* too cramped */
+
+  /* Cards */
+  .card-img { height: 175px; }
+  .card-body { padding: 1rem; }
+
+  /* Gallery */
   .gallery-thumb { width: 44px; height: 30px; }
-  .bw-cal-popup { min-width: 280px; }
+  .gallery-caption { font-size: 0.75rem; left: 1rem; bottom: 0.85rem; }
+
+  /* Sections */
+  .section { padding: 2rem 0; }
+  .section-header { margin-bottom: 1.5rem; }
+  .section-title { font-size: 1.4rem; }
+
+  /* Features */
+  .feature-card { padding: 1.1rem; }
+
+  /* CTA */
+  .cta-box { padding: 1.75rem 0.85rem; }
+  .cta-box h2 { font-size: 1.2rem; }
+
+  /* Room detail */
+  .rd-amenities-grid { grid-template-columns: 1fr; }
+  .rd-title { font-size: 1.25rem; }
+
+  /* Testimonials */
+  .testimonial-card { padding: 1rem; }
+  .testimonial-text { font-size: 0.85rem; }
+
+  /* Dashboard */
+  .stat-value { font-size: 1.5rem; }
+  .dashboard-stats { grid-template-columns: 1fr 1fr; }
+
+  /* Footer */
+  .footer-logo { height: 40px; width: 40px; }
 }
