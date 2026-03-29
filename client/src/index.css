@@ -2430,9 +2430,15 @@ img { max-width: 100%; display: block; }
 }
 
 /* ── Branch hero banner ── */
+/* Branch page — bleed hero flush under the floating navbar */
+.page-branch {
+  padding-top: 0;
+  margin-top: -90px; /* cancel main's padding so hero reaches the top */
+}
+
 .branch-hero {
   position: relative;
-  height: 280px;
+  height: 480px;
   overflow: hidden;
 }
 
@@ -2440,6 +2446,7 @@ img { max-width: 100%; display: block; }
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 40%;
   display: block;
 }
 
@@ -2448,8 +2455,9 @@ img { max-width: 100%; display: block; }
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(0,0,0,0.25) 0%,
-    rgba(0,0,0,0.65) 100%
+    rgba(0,0,0,0.35) 0%,
+    rgba(0,0,0,0.15) 40%,
+    rgba(0,0,0,0.72) 100%
   );
 }
 
@@ -2458,7 +2466,7 @@ img { max-width: 100%; display: block; }
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  padding-bottom: 2rem;
+  padding-bottom: 2.5rem;
   width: 100%;
 }
 
