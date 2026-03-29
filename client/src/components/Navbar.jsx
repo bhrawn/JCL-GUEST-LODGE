@@ -36,7 +36,7 @@ export default function Navbar() {
 
         {/* Logo — far left */}
         <Link to="/" className="navbar-brand">
-          <img src="/jcl-logo.PNG" alt="JCL Guest Lodge" className="navbar-logo" />
+          <img src="/jcl-logo.png" alt="JCL Guest Lodge" className="navbar-logo" />
           <span className="navbar-brand-text">JCL <span className="navbar-brand-sub">Guest Lodge</span></span>
         </Link>
 

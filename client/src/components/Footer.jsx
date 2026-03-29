@@ -8,7 +8,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="footer-brand">
             <Link to="/" className="footer-logo-link">
-              <img src="/jcl-logo.PNG" alt="JCL Guest Lodge" className="footer-logo" />
+              <img src="/jcl-logo.png" alt="JCL Guest Lodge" className="footer-logo" />
             </Link>
             <p className="footer-tagline">
               Premium guest accommodation across Accra. Comfortable rooms, excellent service, and unbeatable locations since 2018.
