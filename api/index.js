@@ -1,162 +1,82 @@
 import express from 'express';
-import initSqlJs from 'sql.js';
+import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
 const app = express();
 app.use(express.json());
 
-// ─── In-Memory Database ────────────────────────────────────────────
-let db;
-let dbReady = null;
+// ─── Supabase Client ──────────────────────────────────────────────
+const supabaseUrl = process.env.SUPABASE_URL || 'https://brhipuaudmxltkmgfgum.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyaGlwdWF1ZG14bHRrbWdmZ3VtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mzk2OTI2MSwiZXhwIjoyMDg5NTQ1MjYxfQ.d44lejZt0xh5WqKuPcAjw1uOY-L6bFXA09a0tdXsQpQ';
 
-const roomImages = {
-  Standard: [
-    'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&h=400&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=600&h=400&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&h=400&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&h=400&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1612320743784-66952008b2e7?w=600&h=400&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=600&h=400&fit=crop&q=80',
-  ],
-  Deluxe: [
-    'https://images.unsplash.com/photo-1618773928121-c32f1e0e56cd?w=600&h=400&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=600&h=400&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=600&h=400&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1540518614846-7eded433c457?w=600&h=400&fit=crop&q=80',
-  ],
-  Suite: [
-    'https://images.unsplash.com/photo-1591088398332-8a7791972843?w=600&h=400&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=600&h=400&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1602002418816-5c0aeef426aa?w=600&h=400&fit=crop&q=80',
-  ],
-};
-
-const branchData = [
-  { name: 'Lapaz', prefix: 'LP', rooms: 24, description: 'Our flagship branch in the heart of Lapaz. Comfortable rooms with easy access to local markets and transportation hubs.', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=500&fit=crop&q=80' },
-  { name: 'Danfa', prefix: 'DN', rooms: 11, description: 'A serene retreat surrounded by nature. Perfect for guests seeking a quieter, more peaceful stay away from the city.', image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&h=500&fit=crop&q=80' },
-  { name: 'Spintex', prefix: 'SP', rooms: 16, description: 'Located on bustling Spintex Road. Ideal for business travelers and visitors to the commercial district.', image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&h=500&fit=crop&q=80' },
-  { name: 'Teshie', prefix: 'TS', rooms: 10, description: 'A cozy coastal branch offering ocean breezes and proximity to the beach. Wake up to the sound of waves.', image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=500&fit=crop&q=80' },
-];
-
-const roomTypes = [
-  { type: 'Standard', price: 150 },
-  { type: 'Deluxe', price: 250 },
-  { type: 'Suite', price: 400 },
-];
-
-function pickRoomType(index, total) {
-  const ratio = index / total;
-  if (ratio < 0.65) return roomTypes[0];
-  if (ratio < 0.85) return roomTypes[1];
-  return roomTypes[2];
-}
-
-function all(sql, params = []) {
-  const stmt = db.prepare(sql);
-  stmt.bind(params);
-  const rows = [];
-  while (stmt.step()) rows.push(stmt.getAsObject());
-  stmt.free();
-  return rows;
-}
-
-function get(sql, params = []) {
-  const rows = all(sql, params);
-  return rows[0] || null;
-}
-
-function run(sql, params = []) {
-  db.run(sql, params);
-  const lastId = db.exec("SELECT last_insert_rowid() as id")[0]?.values[0][0];
-  return { lastInsertRowid: lastId };
-}
-
-async function initDb() {
-  if (db) return;
-
-  // Load WASM from CDN — fixes Vercel serverless bundling issue
-  const SQL = await initSqlJs({
-    locateFile: (file) => `https://sql.js.org/dist/${file}`,
-  });
-  db = new SQL.Database();
-
-  db.run(`CREATE TABLE IF NOT EXISTS branches (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, description TEXT, image_url TEXT)`);
-  db.run(`CREATE TABLE IF NOT EXISTS rooms (id INTEGER PRIMARY KEY AUTOINCREMENT, branch_id INTEGER NOT NULL REFERENCES branches(id), room_number TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'Standard', price_per_night REAL NOT NULL, is_available INTEGER NOT NULL DEFAULT 1, image_url TEXT, UNIQUE(branch_id, room_number))`);
-  db.run(`CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY AUTOINCREMENT, reference TEXT NOT NULL UNIQUE, room_id INTEGER NOT NULL REFERENCES rooms(id), guest_name TEXT NOT NULL, guest_email TEXT NOT NULL, guest_phone TEXT NOT NULL, check_in TEXT NOT NULL, check_out TEXT NOT NULL, total_price REAL NOT NULL, status TEXT NOT NULL DEFAULT 'pending_payment', payment_status TEXT NOT NULL DEFAULT 'unpaid', amount_paid REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')))`);
-  db.run(`CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, booking_id INTEGER NOT NULL REFERENCES bookings(id), paystack_reference TEXT NOT NULL UNIQUE, amount REAL NOT NULL, currency TEXT NOT NULL DEFAULT 'GHS', status TEXT NOT NULL DEFAULT 'pending', paid_at TEXT, channel TEXT, paystack_data TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))`);
-
-  // Seed if empty
-  const count = db.exec("SELECT COUNT(*) FROM branches")[0]?.values[0][0] || 0;
-  if (count === 0) {
-    for (const branch of branchData) {
-      db.run('INSERT INTO branches (name, description, image_url) VALUES (?, ?, ?)', [branch.name, branch.description, branch.image]);
-      const branchId = db.exec("SELECT last_insert_rowid() as id")[0].values[0][0];
-      for (let i = 1; i <= branch.rooms; i++) {
-        const num = String(i).padStart(2, '0');
-        const roomNumber = `${branch.prefix}-${num}`;
-        const roomType = pickRoomType(i - 1, branch.rooms);
-        const images = roomImages[roomType.type];
-        const image = images[(i - 1) % images.length];
-        db.run('INSERT INTO rooms (branch_id, room_number, type, price_per_night, is_available, image_url) VALUES (?, ?, ?, ?, 1, ?)', [branchId, roomNumber, roomType.type, roomType.price, image]);
-      }
-    }
-  }
-}
-
-// Singleton promise so concurrent requests don't double-init
-function getDb() {
-  if (!dbReady) dbReady = initDb();
-  return dbReady;
-}
-
-// Ensure DB is ready before every request
-app.use(async (req, res, next) => {
-  try {
-    await getDb();
-    next();
-  } catch (err) {
-    console.error('DB init error:', err);
-    res.status(500).json({ error: 'Database initialization failed', detail: err.message });
-  }
-});
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ─── Branch Routes ─────────────────────────────────────────────────
-app.get('/api/branches', (req, res) => {
-  const result = all(`
-    SELECT b.*, COUNT(r.id) as total_rooms,
-      SUM(CASE WHEN r.is_available = 1 THEN 1 ELSE 0 END) as available_rooms
-    FROM branches b LEFT JOIN rooms r ON r.branch_id = b.id GROUP BY b.id
-  `);
-  res.json(result);
+app.get('/api/branches', async (req, res) => {
+  try {
+    const { data: branches, error } = await supabase.from('branches').select('*');
+    if (error) throw error;
+
+    // Get room counts for each branch
+    const { data: rooms, error: roomErr } = await supabase.from('rooms').select('id, branch_id, is_available');
+    if (roomErr) throw roomErr;
+
+    const result = branches.map(b => ({
+      ...b,
+      total_rooms: rooms.filter(r => r.branch_id === b.id).length,
+      available_rooms: rooms.filter(r => r.branch_id === b.id && r.is_available).length,
+    }));
+
+    res.json(result);
+  } catch (err) {
+    console.error('Branches error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.get('/api/branches/:id', (req, res) => {
-  const branch = get(`
-    SELECT b.*, COUNT(r.id) as total_rooms,
-      SUM(CASE WHEN r.is_available = 1 THEN 1 ELSE 0 END) as available_rooms
-    FROM branches b LEFT JOIN rooms r ON r.branch_id = b.id
-    WHERE b.id = ? GROUP BY b.id
-  `, [Number(req.params.id)]);
-  if (!branch) return res.status(404).json({ error: 'Branch not found' });
-  res.json(branch);
+app.get('/api/branches/:id', async (req, res) => {
+  try {
+    const { data: branch, error } = await supabase
+      .from('branches').select('*').eq('id', Number(req.params.id)).single();
+    if (error || !branch) return res.status(404).json({ error: 'Branch not found' });
+
+    const { data: rooms } = await supabase.from('rooms').select('id, is_available').eq('branch_id', branch.id);
+    branch.total_rooms = rooms?.length || 0;
+    branch.available_rooms = rooms?.filter(r => r.is_available).length || 0;
+
+    res.json(branch);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.get('/api/branches/:id/rooms', (req, res) => {
-  let query = 'SELECT * FROM rooms WHERE branch_id = ?';
-  const params = [Number(req.params.id)];
-  if (req.query.available === '1') query += ' AND is_available = 1';
-  query += ' ORDER BY room_number';
-  res.json(all(query, params));
+app.get('/api/branches/:id/rooms', async (req, res) => {
+  try {
+    let query = supabase.from('rooms').select('*').eq('branch_id', Number(req.params.id));
+    if (req.query.available === '1') query = query.eq('is_available', true);
+    query = query.order('room_number');
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── Room Routes ───────────────────────────────────────────────────
-app.get('/api/rooms/:id', (req, res) => {
-  const room = get(`
-    SELECT r.*, b.name as branch_name FROM rooms r
-    JOIN branches b ON b.id = r.branch_id WHERE r.id = ?
-  `, [Number(req.params.id)]);
-  if (!room) return res.status(404).json({ error: 'Room not found' });
-  res.json(room);
+app.get('/api/rooms/:id', async (req, res) => {
+  try {
+    const { data: room, error } = await supabase
+      .from('rooms').select('*, branches(name)').eq('id', Number(req.params.id)).single();
+    if (error || !room) return res.status(404).json({ error: 'Room not found' });
+
+    room.branch_name = room.branches?.name;
+    delete room.branches;
+    res.json(room);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── Booking Routes ────────────────────────────────────────────────
@@ -166,41 +86,110 @@ function generateReference() {
   return `JCL-${date}-${rand}`;
 }
 
-app.post('/api/bookings', (req, res) => {
-  const { room_id, guest_name, guest_email, guest_phone, check_in, check_out } = req.body;
-  if (!room_id || !guest_name || !guest_email || !guest_phone || !check_in || !check_out) {
-    return res.status(400).json({ error: 'All fields are required' });
+app.post('/api/bookings', async (req, res) => {
+  try {
+    const { room_id, guest_name, guest_email, guest_phone, check_in, check_out } = req.body;
+    if (!room_id || !guest_name || !guest_email || !guest_phone || !check_in || !check_out) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    const checkInDate = new Date(check_in);
+    const checkOutDate = new Date(check_out);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (checkInDate < today) return res.status(400).json({ error: 'Check-in date must be today or in the future' });
+    if (checkOutDate <= checkInDate) return res.status(400).json({ error: 'Check-out date must be after check-in date' });
+
+    // Check room exists and is available
+    const { data: room } = await supabase
+      .from('rooms').select('*').eq('id', room_id).eq('is_available', true).single();
+    if (!room) return res.status(400).json({ error: 'Room not found or not available' });
+
+    // Check for overlapping bookings
+    const { data: overlaps } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('room_id', room_id)
+      .neq('status', 'cancelled')
+      .lt('check_in', check_out)
+      .gt('check_out', check_in)
+      .limit(1);
+
+    if (overlaps?.length > 0) return res.status(409).json({ error: 'Room is already booked for the selected dates' });
+
+    const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+    const total_price = nights * room.price_per_night;
+    const reference = generateReference();
+
+    const { data: booking, error } = await supabase.from('bookings').insert({
+      reference, room_id, guest_name, guest_email, guest_phone, check_in, check_out,
+      total_price, status: 'pending_payment', payment_status: 'unpaid',
+    }).select().single();
+
+    if (error) throw error;
+
+    // Fetch full booking with joins
+    const { data: fullBooking } = await supabase
+      .from('bookings')
+      .select('*, rooms(room_number, type, price_per_night, branches(name))')
+      .eq('id', booking.id).single();
+
+    const result = {
+      ...fullBooking,
+      room_number: fullBooking.rooms?.room_number,
+      room_type: fullBooking.rooms?.type,
+      price_per_night: fullBooking.rooms?.price_per_night,
+      branch_name: fullBooking.rooms?.branches?.name,
+    };
+    delete result.rooms;
+
+    res.status(201).json(result);
+  } catch (err) {
+    console.error('Booking error:', err);
+    res.status(500).json({ error: err.message });
   }
-  const checkInDate = new Date(check_in);
-  const checkOutDate = new Date(check_out);
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  if (checkInDate < today) return res.status(400).json({ error: 'Check-in date must be today or in the future' });
-  if (checkOutDate <= checkInDate) return res.status(400).json({ error: 'Check-out date must be after check-in date' });
-
-  const room = get('SELECT * FROM rooms WHERE id = ? AND is_available = 1', [room_id]);
-  if (!room) return res.status(400).json({ error: 'Room not found or not available' });
-
-  const overlap = get(`SELECT id FROM bookings WHERE room_id = ? AND status != 'cancelled' AND check_in < ? AND check_out > ?`, [room_id, check_out, check_in]);
-  if (overlap) return res.status(409).json({ error: 'Room is already booked for the selected dates' });
-
-  const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
-  const total_price = nights * room.price_per_night;
-  const reference = generateReference();
-
-  const result = run(`INSERT INTO bookings (reference, room_id, guest_name, guest_email, guest_phone, check_in, check_out, total_price, status, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_payment', 'unpaid')`, [reference, room_id, guest_name, guest_email, guest_phone, check_in, check_out, total_price]);
-
-  const booking = get(`SELECT bk.*, r.room_number, r.type as room_type, r.price_per_night, b.name as branch_name FROM bookings bk JOIN rooms r ON r.id = bk.room_id JOIN branches b ON b.id = r.branch_id WHERE bk.id = ?`, [result.lastInsertRowid]);
-  res.status(201).json(booking);
 });
 
-app.get('/api/bookings', (req, res) => {
-  res.json(all(`SELECT bk.*, r.room_number, r.type as room_type, b.name as branch_name FROM bookings bk JOIN rooms r ON r.id = bk.room_id JOIN branches b ON b.id = r.branch_id ORDER BY bk.created_at DESC`));
+app.get('/api/bookings', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*, rooms(room_number, type, branches(name))')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const result = data.map(b => ({
+      ...b,
+      room_number: b.rooms?.room_number,
+      room_type: b.rooms?.type,
+      branch_name: b.rooms?.branches?.name,
+      rooms: undefined,
+    }));
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.get('/api/bookings/:reference', (req, res) => {
-  const booking = get(`SELECT bk.*, r.room_number, r.type as room_type, r.price_per_night, b.name as branch_name FROM bookings bk JOIN rooms r ON r.id = bk.room_id JOIN branches b ON b.id = r.branch_id WHERE bk.reference = ?`, [req.params.reference]);
-  if (!booking) return res.status(404).json({ error: 'Booking not found' });
-  res.json(booking);
+app.get('/api/bookings/:reference', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*, rooms(room_number, type, price_per_night, branches(name))')
+      .eq('reference', req.params.reference).single();
+    if (error || !data) return res.status(404).json({ error: 'Booking not found' });
+
+    const result = {
+      ...data,
+      room_number: data.rooms?.room_number,
+      room_type: data.rooms?.type,
+      price_per_night: data.rooms?.price_per_night,
+      branch_name: data.rooms?.branches?.name,
+    };
+    delete result.rooms;
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── Admin Routes ──────────────────────────────────────────────────
@@ -215,19 +204,27 @@ app.post('/api/admin/login', (req, res) => {
   }
 });
 
-app.put('/api/admin/rooms/:id', (req, res) => {
-  const { is_available } = req.body;
-  const room = get('SELECT * FROM rooms WHERE id = ?', [Number(req.params.id)]);
-  if (!room) return res.status(404).json({ error: 'Room not found' });
-  run('UPDATE rooms SET is_available = ? WHERE id = ?', [is_available ? 1 : 0, Number(req.params.id)]);
-  res.json(get('SELECT * FROM rooms WHERE id = ?', [Number(req.params.id)]));
+app.put('/api/admin/rooms/:id', async (req, res) => {
+  try {
+    const { is_available } = req.body;
+    const { data, error } = await supabase
+      .from('rooms').update({ is_available: !!is_available }).eq('id', Number(req.params.id)).select().single();
+    if (error || !data) return res.status(404).json({ error: 'Room not found' });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.put('/api/admin/bookings/:id/cancel', (req, res) => {
-  const booking = get('SELECT * FROM bookings WHERE id = ?', [Number(req.params.id)]);
-  if (!booking) return res.status(404).json({ error: 'Booking not found' });
-  run("UPDATE bookings SET status = 'cancelled' WHERE id = ?", [Number(req.params.id)]);
-  res.json({ success: true });
+app.put('/api/admin/bookings/:id/cancel', async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('bookings').update({ status: 'cancelled' }).eq('id', Number(req.params.id));
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── Payment Routes ────────────────────────────────────────────────
@@ -249,9 +246,13 @@ app.post('/api/payments/initialize', async (req, res) => {
     const { booking_reference, payment_type = 'full' } = req.body;
     if (!booking_reference) return res.status(400).json({ error: 'booking_reference is required' });
 
-    const booking = get(`SELECT bk.*, r.room_number, b.name as branch_name FROM bookings bk JOIN rooms r ON r.id = bk.room_id JOIN branches b ON b.id = r.branch_id WHERE bk.reference = ?`, [booking_reference]);
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('*, rooms(room_number, branches(name))')
+      .eq('reference', booking_reference).single();
+
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    if (booking.payment_status === 'paid') return res.status(400).json({ error: 'Booking is already fully paid' });
+    if (booking.payment_status === 'paid') return res.status(400).json({ error: 'Already fully paid' });
 
     const payableAmount = payment_type === 'half' ? booking.total_price / 2 : booking.total_price;
     const amount = Math.round(payableAmount * 100);
@@ -260,14 +261,25 @@ app.post('/api/payments/initialize', async (req, res) => {
       email: booking.guest_email, amount, currency: 'GHS',
       reference: `PAY-${booking.reference}-${Date.now()}`,
       callback_url: `${req.headers.origin || 'https://jcl-guest-lodge.vercel.app'}/payment/verify`,
-      metadata: { booking_reference: booking.reference, booking_id: booking.id, guest_name: booking.guest_name, room: booking.room_number, branch: booking.branch_name, payment_type },
+      metadata: {
+        booking_reference: booking.reference, booking_id: booking.id,
+        guest_name: booking.guest_name, room: booking.rooms?.room_number,
+        branch: booking.rooms?.branches?.name, payment_type,
+      },
     });
 
     if (!paystackRes.status) return res.status(400).json({ error: paystackRes.message || 'Failed to initialize payment' });
 
-    run(`INSERT INTO payments (booking_id, paystack_reference, amount, currency, status) VALUES (?, ?, ?, 'GHS', 'pending')`, [booking.id, paystackRes.data.reference, payableAmount]);
+    await supabase.from('payments').insert({
+      booking_id: booking.id, paystack_reference: paystackRes.data.reference,
+      amount: payableAmount, currency: 'GHS', status: 'pending',
+    });
 
-    res.json({ authorization_url: paystackRes.data.authorization_url, access_code: paystackRes.data.access_code, reference: paystackRes.data.reference });
+    res.json({
+      authorization_url: paystackRes.data.authorization_url,
+      access_code: paystackRes.data.access_code,
+      reference: paystackRes.data.reference,
+    });
   } catch (err) {
     console.error('Payment init error:', err);
     res.status(500).json({ error: 'Payment initialization failed' });
@@ -281,18 +293,45 @@ app.get('/api/payments/verify/:reference', async (req, res) => {
     if (!paystackRes.status) return res.status(400).json({ error: paystackRes.message || 'Verification failed' });
 
     const txn = paystackRes.data;
-    const payment = get('SELECT * FROM payments WHERE paystack_reference = ?', [reference]);
+    const { data: payment } = await supabase
+      .from('payments').select('*').eq('paystack_reference', reference).single();
     if (!payment) return res.status(404).json({ error: 'Payment record not found' });
 
     if (txn.status === 'success') {
-      run(`UPDATE payments SET status = 'success', paid_at = ?, channel = ?, paystack_data = ? WHERE paystack_reference = ?`, [txn.paid_at || new Date().toISOString(), txn.channel || 'unknown', JSON.stringify(txn), reference]);
+      await supabase.from('payments').update({
+        status: 'success', paid_at: txn.paid_at || new Date().toISOString(),
+        channel: txn.channel || 'unknown', paystack_data: txn,
+      }).eq('paystack_reference', reference);
+
       const paymentType = txn.metadata?.payment_type || 'full';
       const isPartial = paymentType === 'half';
-      run(`UPDATE bookings SET status = 'confirmed', payment_status = ?, amount_paid = COALESCE(amount_paid, 0) + ? WHERE id = ?`, [isPartial ? 'partial' : 'paid', payment.amount, payment.booking_id]);
-      const updatedBooking = get(`SELECT bk.*, r.room_number, r.type as room_type, r.price_per_night, b.name as branch_name FROM bookings bk JOIN rooms r ON r.id = bk.room_id JOIN branches b ON b.id = r.branch_id WHERE bk.id = ?`, [payment.booking_id]);
-      res.json({ status: 'success', booking: updatedBooking });
+
+      const { data: currentBooking } = await supabase
+        .from('bookings').select('amount_paid').eq('id', payment.booking_id).single();
+
+      await supabase.from('bookings').update({
+        status: 'confirmed',
+        payment_status: isPartial ? 'partial' : 'paid',
+        amount_paid: (currentBooking?.amount_paid || 0) + payment.amount,
+      }).eq('id', payment.booking_id);
+
+      const { data: updatedBooking } = await supabase
+        .from('bookings')
+        .select('*, rooms(room_number, type, price_per_night, branches(name))')
+        .eq('id', payment.booking_id).single();
+
+      const result = {
+        ...updatedBooking,
+        room_number: updatedBooking.rooms?.room_number,
+        room_type: updatedBooking.rooms?.type,
+        price_per_night: updatedBooking.rooms?.price_per_night,
+        branch_name: updatedBooking.rooms?.branches?.name,
+      };
+      delete result.rooms;
+
+      res.json({ status: 'success', booking: result });
     } else {
-      run("UPDATE payments SET status = ? WHERE paystack_reference = ?", [txn.status, reference]);
+      await supabase.from('payments').update({ status: txn.status }).eq('paystack_reference', reference);
       res.json({ status: txn.status, message: 'Payment not successful' });
     }
   } catch (err) {
@@ -301,19 +340,32 @@ app.get('/api/payments/verify/:reference', async (req, res) => {
   }
 });
 
-app.post('/api/payments/webhook', (req, res) => {
+app.post('/api/payments/webhook', async (req, res) => {
   const hash = crypto.createHmac('sha512', PAYSTACK_SECRET).update(JSON.stringify(req.body)).digest('hex');
   if (hash !== req.headers['x-paystack-signature']) return res.status(401).json({ error: 'Invalid signature' });
 
   const event = req.body;
   if (event.event === 'charge.success') {
     const txn = event.data;
-    const payment = get('SELECT * FROM payments WHERE paystack_reference = ?', [txn.reference]);
+    const { data: payment } = await supabase
+      .from('payments').select('*').eq('paystack_reference', txn.reference).single();
+
     if (payment) {
-      run(`UPDATE payments SET status = 'success', paid_at = ?, channel = ?, paystack_data = ? WHERE paystack_reference = ?`, [txn.paid_at, txn.channel, JSON.stringify(txn), txn.reference]);
+      await supabase.from('payments').update({
+        status: 'success', paid_at: txn.paid_at, channel: txn.channel, paystack_data: txn,
+      }).eq('paystack_reference', txn.reference);
+
       const paymentType = txn.metadata?.payment_type || 'full';
       const isPartial = paymentType === 'half';
-      run(`UPDATE bookings SET status = 'confirmed', payment_status = ?, amount_paid = COALESCE(amount_paid, 0) + ? WHERE id = ?`, [isPartial ? 'partial' : 'paid', payment.amount, payment.booking_id]);
+
+      const { data: currentBooking } = await supabase
+        .from('bookings').select('amount_paid').eq('id', payment.booking_id).single();
+
+      await supabase.from('bookings').update({
+        status: 'confirmed',
+        payment_status: isPartial ? 'partial' : 'paid',
+        amount_paid: (currentBooking?.amount_paid || 0) + payment.amount,
+      }).eq('id', payment.booking_id);
     }
   }
   res.sendStatus(200);

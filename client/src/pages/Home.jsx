@@ -1,13 +1,359 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, useInView, AnimatePresence } from 'framer-motion';
 import { api } from '../lib/api';
-import { AuroraBackground } from '@/components/ui/aurora-background';
 import BranchCard from '../components/BranchCard';
 
+/* ── Branch Dropdown ── */
+function BranchDropdown({ branches, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const selected = branches.find(b => String(b.id) === String(value));
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="bw-dropdown" ref={ref}>
+      <button type="button" className="bw-dropdown-trigger" onClick={() => setOpen(o => !o)}>
+        <span className="bw-dropdown-value">
+          {selected ? selected.name : <span className="bw-dropdown-placeholder">Any Branch</span>}
+        </span>
+        <svg
+          className={`bw-dropdown-chevron${open ? ' bw-dropdown-chevron--open' : ''}`}
+          width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+        >
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.ul
+            className="bw-dropdown-menu"
+            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+            transition={{ duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
+            <li
+              className={`bw-dropdown-item${!value ? ' bw-dropdown-item--active' : ''}`}
+              onClick={() => { onChange(''); setOpen(false); }}
+            >
+              <span className="bw-dropdown-item-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              </span>
+              All Branches
+            </li>
+            {branches.map(b => (
+              <li
+                key={b.id}
+                className={`bw-dropdown-item${String(value) === String(b.id) ? ' bw-dropdown-item--active' : ''}`}
+                onClick={() => { onChange(b.id); setOpen(false); }}
+              >
+                <span className="bw-dropdown-item-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+                </span>
+                {b.name}
+                <span className="bw-dropdown-item-badge">Accra</span>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ── animation helpers ── */
+const fadeUp = {
+  hidden: { opacity: 0, y: 40 },
+  visible: (i = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.12, duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] },
+  }),
+};
+
+const fadeLeft = {
+  hidden: { opacity: 0, x: -50 },
+  visible: (i = 0) => ({
+    opacity: 1,
+    x: 0,
+    transition: { delay: i * 0.15, duration: 0.65, ease: [0.25, 0.46, 0.45, 0.94] },
+  }),
+};
+
+const fadeRight = {
+  hidden: { opacity: 0, x: 50 },
+  visible: (i = 0) => ({
+    opacity: 1,
+    x: 0,
+    transition: { delay: i * 0.15, duration: 0.65, ease: [0.25, 0.46, 0.45, 0.94] },
+  }),
+};
+
+const scaleIn = {
+  hidden: { opacity: 0, scale: 0.85 },
+  visible: (i = 0) => ({
+    opacity: 1,
+    scale: 1,
+    transition: { delay: i * 0.1, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+  }),
+};
+
+function AnimSection({ children, className = '', variants = fadeUp, custom = 0 }) {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: '-80px' });
+  return (
+    <motion.div
+      ref={ref}
+      initial="hidden"
+      animate={isInView ? 'visible' : 'hidden'}
+      variants={variants}
+      custom={custom}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ── data ── */
+const features = [
+  {
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    ),
+    title: '24/7 Check-in',
+    desc: 'Arrive at any hour — our front desk is always ready to welcome you, day or night.',
+  },
+  {
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0112 2a8 8 0 018 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+    ),
+    title: '4 Prime Locations',
+    desc: 'Strategically located across Accra — Lapaz, Danfa, Spintex, and Teshie.',
+  },
+  {
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+    ),
+    title: 'Flexible Payments',
+    desc: 'Pay in full or 50% upfront — we make it easy with Paystack integration.',
+  },
+  {
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+    ),
+    title: 'Comfort First',
+    desc: 'Clean rooms, reliable AC, fast WiFi, and attentive service — essentials done right.',
+  },
+  {
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+    ),
+    title: 'Group-Friendly',
+    desc: 'Rooms for every group size and budget — families, teams, or solo travelers.',
+  },
+  {
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    ),
+    title: 'Instant Booking',
+    desc: 'No calls, no waiting. Browse, select, and confirm your room in under a minute.',
+  },
+];
+
+const steps = [
+  {
+    num: '01',
+    title: 'Pick a Branch',
+    desc: 'Browse our 4 locations across Accra and choose the branch closest to your destination.',
+    icon: (
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0112 2a8 8 0 018 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+    ),
+  },
+  {
+    num: '02',
+    title: 'Choose Your Room',
+    desc: 'View available rooms with photos, pricing, and amenities. Find the perfect fit for your stay.',
+    icon: (
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    ),
+  },
+  {
+    num: '03',
+    title: 'Book & Pay',
+    desc: 'Fill in your details, choose a payment option, and get instant confirmation via email.',
+    icon: (
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+    ),
+  },
+];
+
+const testimonials = [
+  {
+    name: 'Ama Mensah',
+    role: 'Business Traveler',
+    text: 'JCL made my stay in Accra seamless. The booking was instant and the room was exactly as pictured. Will definitely be back!',
+    avatar: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=100&h=100&fit=crop&crop=face',
+  },
+  {
+    name: 'Kwame Asante',
+    role: 'Family Vacation',
+    text: 'We booked rooms for the whole family at the Spintex branch. Clean, comfortable, and the staff were incredibly welcoming.',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
+  },
+  {
+    name: 'Efua Owusu',
+    role: 'Weekend Getaway',
+    text: 'The flexible payment option was a lifesaver. I paid 50% upfront and settled the rest at check-in. So convenient!',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face',
+  },
+];
+
+/* ── Gallery images (replace with real images later) ── */
+const GALLERY_IMAGES = [
+  { src: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=1200&h=750&q=80', caption: 'Standard Room — Lapaz' },
+  { src: 'https://images.unsplash.com/photo-1618773928121-c32f1e0e56cd?auto=format&fit=crop&w=1200&h=750&q=80', caption: 'Deluxe Room — Spintex' },
+  { src: 'https://images.unsplash.com/photo-1591088398332-8a7791972843?auto=format&fit=crop&w=1200&h=750&q=80', caption: 'Suite — Danfa' },
+  { src: 'https://images.unsplash.com/photo-1560448204-603b3fc33ddc?auto=format&fit=crop&w=1200&h=750&q=80', caption: 'Suite — Teshie' },
+  { src: 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1200&h=750&q=80', caption: 'Standard Room — Danfa' },
+  { src: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1200&h=750&q=80', caption: 'Deluxe Room — Lapaz' },
+  { src: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?auto=format&fit=crop&w=1200&h=750&q=80', caption: 'Deluxe Room — Teshie' },
+  { src: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&h=750&q=80', caption: 'Standard Room — Spintex' },
+  { src: 'https://images.unsplash.com/photo-1602002418816-5c0aeef426aa?auto=format&fit=crop&w=1200&h=750&q=80', caption: 'Suite — Lapaz' },
+  { src: 'https://images.unsplash.com/photo-1540518614846-7eded433c457?auto=format&fit=crop&w=1200&h=750&q=80', caption: 'Deluxe Room — Danfa' },
+];
+
+function GallerySection() {
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const total = GALLERY_IMAGES.length;
+
+  useEffect(() => {
+    if (paused) return;
+    const t = setInterval(() => setActive(p => (p + 1) % total), 3500);
+    return () => clearInterval(t);
+  }, [paused, total]);
+
+  const prev = () => setActive(p => (p - 1 + total) % total);
+  const next = () => setActive(p => (p + 1) % total);
+
+  return (
+    <section className="gallery-section" id="gallery">
+      <AnimSection>
+        <div className="section-header">
+          <span className="section-label">Gallery</span>
+          <h2 className="section-title">A glimpse inside</h2>
+          <p className="section-subtitle">Thoughtfully designed spaces built for comfort and style.</p>
+        </div>
+      </AnimSection>
+
+      <div
+        className="gallery-slider"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        {/* Slides */}
+        <div className="gallery-track">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={active}
+              className="gallery-slide"
+              initial={{ opacity: 0, scale: 1.03 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+            >
+              <img
+                src={GALLERY_IMAGES[active].src}
+                alt={GALLERY_IMAGES[active].caption}
+                className="gallery-img"
+                loading="lazy"
+                onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=1200&h=750&q=80'; }}
+              />
+              {/* Overlay gradient */}
+              <div className="gallery-overlay" />
+              {/* Caption */}
+              <motion.div
+                className="gallery-caption"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.4 }}
+              >
+                <span className="gallery-caption-dot" />
+                {GALLERY_IMAGES[active].caption}
+              </motion.div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Prev / Next */}
+        <button className="gallery-arrow gallery-arrow--prev" onClick={prev} aria-label="Previous">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <button className="gallery-arrow gallery-arrow--next" onClick={next} aria-label="Next">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+
+        {/* Dot indicators */}
+        <div className="gallery-dots">
+          {GALLERY_IMAGES.map((_, i) => (
+            <button
+              key={i}
+              className={`gallery-dot${i === active ? ' gallery-dot--active' : ''}`}
+              onClick={() => setActive(i)}
+              aria-label={`Go to slide ${i + 1}`}
+            />
+          ))}
+        </div>
+
+        {/* Thumbnail strip */}
+        <div className="gallery-thumbs">
+          {GALLERY_IMAGES.map((img, i) => (
+            <button
+              key={i}
+              className={`gallery-thumb${i === active ? ' gallery-thumb--active' : ''}`}
+              onClick={() => setActive(i)}
+            >
+              <img src={img.src} alt={img.caption} loading="lazy" />
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Home() {
+  const navigate = useNavigate();
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [booking, setBooking] = useState({
+    branch: '',
+    checkin: '',
+    checkout: '',
+    adults: 1,
+    children: 0,
+  });
+
+  const setField = (field, value) => setBooking(prev => ({ ...prev, [field]: value }));
+
+  const handleCheckAvailability = (e) => {
+    e.preventDefault();
+    if (booking.branch) {
+      navigate(`/branch/${booking.branch}/rooms`);
+    } else {
+      document.getElementById('branches')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     api.getBranches()
@@ -16,139 +362,304 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Auto-rotate testimonials
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
-    <div>
-      {/* Hero */}
-      <AuroraBackground className="!h-[90vh] !min-h-[640px] !bg-zinc-950" showRadialGradient>
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.7, ease: 'easeOut' }}
-          className="relative z-10 flex flex-col items-center text-center px-6 gap-6 max-w-3xl"
-        >
-          <span className="inline-block font-mono text-[0.68rem] tracking-[0.14em] uppercase text-amber-400/90 bg-amber-400/10 border border-amber-400/20 px-5 py-2 rounded-full font-bold">
+    <div className="home-page">
+
+      {/* ══════ HERO ══════ */}
+      <section className="hero">
+        {/* Gradient orbs */}
+        <div className="hero-orb hero-orb-1" />
+        <div className="hero-orb hero-orb-2" />
+        <div className="hero-orb hero-orb-3" />
+
+        {/* Grid pattern overlay */}
+        <div className="hero-grid-pattern" />
+
+        <div className="container hero-content">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="hero-pill"
+          >
+            <span className="hero-pill-dot" />
             4 Locations &middot; 61 Rooms &middot; Accra, Ghana
-          </span>
+          </motion.div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white leading-[1.05] tracking-[-0.04em]">
-            Your perfect stay,
-            <br />
-            <span className="bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 bg-clip-text text-transparent">
-              effortlessly booked
-            </span>
-          </h1>
+          <motion.h1
+            className="hero-headline"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
+            Your Perfect Stay,
+            <span className="hero-headline-accent"> Effortlessly Booked</span>
+          </motion.h1>
 
-          <p className="text-zinc-400 text-base sm:text-lg max-w-md leading-relaxed">
-            Premium rooms, seamless booking. Select a branch, pick your room, and reserve in seconds.
-          </p>
+          <motion.p
+            className="hero-subtext"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.7 }}
+          >
+            Premium guest rooms across Accra. Pick a branch, choose your room,
+            and book in under a minute.
+          </motion.p>
 
-          <div className="flex gap-3 mt-1">
-            <a
-              href="#branches"
-              className="inline-flex items-center h-12 px-7 bg-white text-zinc-900 text-sm font-semibold rounded-full hover:bg-zinc-200 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(255,255,255,0.12)]"
-            >
-              Browse Rooms
-            </a>
-            <Link
-              to="/admin"
-              className="inline-flex items-center h-12 px-7 border border-zinc-700 text-zinc-400 text-sm font-semibold rounded-full hover:border-zinc-500 hover:text-white transition-all"
-            >
-              Admin Portal
-            </Link>
-          </div>
-        </motion.div>
+          {/* Booking Widget */}
+          <motion.form
+            className="booking-widget"
+            onSubmit={handleCheckAvailability}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.65, duration: 0.7 }}
+          >
+            {/* Branch */}
+            <div className="bw-field">
+              <label>Branch</label>
+              <BranchDropdown
+                branches={branches}
+                value={booking.branch}
+                onChange={v => setField('branch', v)}
+              />
+            </div>
+
+            <div className="bw-divider" />
+
+            {/* Check-in */}
+            <div className="bw-field">
+              <label>Check-in</label>
+              <input
+                type="date"
+                value={booking.checkin}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={e => setField('checkin', e.target.value)}
+              />
+            </div>
+
+            <div className="bw-divider" />
+
+            {/* Check-out */}
+            <div className="bw-field">
+              <label>Check-out</label>
+              <input
+                type="date"
+                value={booking.checkout}
+                min={booking.checkin || new Date().toISOString().split('T')[0]}
+                onChange={e => setField('checkout', e.target.value)}
+              />
+            </div>
+
+            <div className="bw-divider" />
+
+            {/* Guests */}
+            <div className="bw-field">
+              <label>Guests</label>
+              <div className="bw-guests">
+                <div className="bw-guests-group">
+                  <span className="bw-guests-label">Adults</span>
+                  <input type="number" min="1" max="10" value={booking.adults}
+                    onChange={e => setField('adults', e.target.value)} />
+                </div>
+                <span className="bw-guests-sep">/</span>
+                <div className="bw-guests-group">
+                  <span className="bw-guests-label">Children</span>
+                  <input type="number" min="0" max="10" value={booking.children}
+                    onChange={e => setField('children', e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            {/* CTA */}
+            <button type="submit" className="bw-submit">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Check Availability
+            </button>
+          </motion.form>
+        </div>
 
         {/* Scroll indicator */}
         <motion.div
+          className="hero-scroll-indicator"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.2, duration: 0.8 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2"
+          transition={{ delay: 1.4, duration: 0.8 }}
         >
-          <div className="w-5 h-8 rounded-full border-2 border-zinc-600 flex justify-center pt-1.5">
+          <span>Scroll</span>
+          <div className="hero-scroll-mouse">
             <motion.div
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-              className="w-1 h-1 rounded-full bg-zinc-400"
+              className="hero-scroll-dot"
+              animate={{ y: [0, 10, 0] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
             />
           </div>
         </motion.div>
-      </AuroraBackground>
+      </section>
 
-      {/* Features */}
-      <div className="features-section">
+      {/* ══════ BRANCHES ══════ */}
+      <section className="section section-branches" id="branches">
         <div className="container">
-          <div className="page-header">
-            <span className="label">Why JCL</span>
-            <h1>More than just a room</h1>
-            <p>We go the extra mile to make every stay memorable.</p>
-          </div>
-          <div className="features-grid">
-            <div className="feature-card">
-              <div className="feature-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              </div>
-              <h3>24/7 Check-in</h3>
-              <p>Arrive at any hour — our front desk is always ready to welcome you, day or night.</p>
+          <AnimSection>
+            <div className="section-header">
+              <span className="section-label">Our Branches</span>
+              <h2 className="section-title">Choose your destination</h2>
+              <p className="section-subtitle">Each branch offers a unique experience tailored to your needs.</p>
             </div>
-            <div className="feature-card">
-              <div className="feature-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0112 2a8 8 0 018 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
-              </div>
-              <h3>4 Prime Locations</h3>
-              <p>Strategically located across Accra — Lapaz, Danfa, Spintex, and Teshie for your convenience.</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-              </div>
-              <h3>Flexible Payments</h3>
-              <p>Pay in full, pay 50% upfront, or settle at check-in — we make it easy for you.</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-              </div>
-              <h3>Comfort First</h3>
-              <p>Clean rooms, reliable AC, fast WiFi, and attentive service — the essentials done right.</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-              </div>
-              <h3>Group-Friendly</h3>
-              <p>Traveling with family or a team? We have rooms for every group size and budget.</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              </div>
-              <h3>Instant Booking</h3>
-              <p>No calls, no waiting. Browse, select, and confirm your room in under a minute online.</p>
-            </div>
-          </div>
-        </div>
-      </div>
+          </AnimSection>
 
-      {/* Branches */}
-      <div className="page" id="branches">
-        <div className="container">
-          <div className="page-header">
-            <span className="label">Our Branches</span>
-            <h1>Choose your destination</h1>
-            <p>Each branch offers a unique experience tailored to your needs.</p>
-          </div>
           {loading ? (
             <div className="loading">Loading branches</div>
           ) : (
             <div className="grid grid-2">
-              {branches.map((branch) => (
-                <BranchCard key={branch.id} branch={branch} />
+              {branches.map((branch, i) => (
+                <AnimSection key={branch.id} custom={i} variants={fadeUp}>
+                  <BranchCard branch={branch} />
+                </AnimSection>
               ))}
             </div>
           )}
         </div>
-      </div>
+      </section>
+
+      {/* ══════ GALLERY ══════ */}
+      <GallerySection />
+
+      {/* ══════ FEATURES ══════ */}
+      <section className="section section-features">
+        <div className="container">
+          <AnimSection>
+            <div className="section-header">
+              <span className="section-label">Why JCL</span>
+              <h2 className="section-title">More than just a room</h2>
+              <p className="section-subtitle">We go the extra mile to make every stay memorable.</p>
+            </div>
+          </AnimSection>
+
+          <div className="features-grid">
+            {features.map((f, i) => (
+              <AnimSection key={i} custom={i} variants={fadeUp}>
+                <div className="feature-card">
+                  <div className="feature-icon">{f.icon}</div>
+                  <h3>{f.title}</h3>
+                  <p>{f.desc}</p>
+                </div>
+              </AnimSection>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════ HOW IT WORKS ══════ */}
+      <section className="section section-steps">
+        <div className="container">
+          <AnimSection>
+            <div className="section-header">
+              <span className="section-label">How It Works</span>
+              <h2 className="section-title">Book in 3 simple steps</h2>
+              <p className="section-subtitle">From browsing to confirmation in under a minute.</p>
+            </div>
+          </AnimSection>
+
+          <div className="steps-container">
+            {steps.map((step, i) => (
+              <div className="step-wrapper" key={i}>
+                <AnimSection variants={i % 2 === 0 ? fadeLeft : fadeRight} custom={i}>
+                  <div className="step-card">
+                    <div className="step-number">{step.num}</div>
+                    <div className="step-icon-wrap">{step.icon}</div>
+                    <h3>{step.title}</h3>
+                    <p>{step.desc}</p>
+                  </div>
+                </AnimSection>
+                {i < steps.length - 1 && (
+                  <AnimSection variants={scaleIn} custom={i + 0.5}>
+                    <div className="step-connector">
+                      <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
+                        <path d="M0 12h32m0 0l-6-6m6 6l-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </AnimSection>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════ TESTIMONIALS ══════ */}
+      <section className="section section-testimonials">
+        <div className="container">
+          <AnimSection>
+            <div className="section-header">
+              <span className="section-label">Guest Reviews</span>
+              <h2 className="section-title">What our guests say</h2>
+              <p className="section-subtitle">Real experiences from real guests across our branches.</p>
+            </div>
+          </AnimSection>
+
+          <AnimSection>
+            <div className="testimonial-carousel">
+              <div className="testimonial-track" style={{ transform: `translateX(-${activeTestimonial * 100}%)` }}>
+                {testimonials.map((t, i) => (
+                  <div className="testimonial-slide" key={i}>
+                    <div className="testimonial-card">
+                      <div className="testimonial-quote">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor" opacity="0.15">
+                          <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
+                        </svg>
+                      </div>
+                      <p className="testimonial-text">{t.text}</p>
+                      <div className="testimonial-author">
+                        <img src={t.avatar} alt={t.name} className="testimonial-avatar" loading="lazy" />
+                        <div>
+                          <span className="testimonial-name">{t.name}</span>
+                          <span className="testimonial-role">{t.role}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Dots */}
+              <div className="testimonial-dots">
+                {testimonials.map((_, i) => (
+                  <button
+                    key={i}
+                    className={`testimonial-dot ${i === activeTestimonial ? 'testimonial-dot-active' : ''}`}
+                    onClick={() => setActiveTestimonial(i)}
+                    aria-label={`View testimonial ${i + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </AnimSection>
+        </div>
+      </section>
+
+      {/* ══════ FINAL CTA ══════ */}
+      <section className="section section-cta">
+        <div className="container">
+          <AnimSection>
+            <div className="cta-box">
+              <h2>Ready for a comfortable stay?</h2>
+              <p>Browse our rooms and book your perfect stay in Accra today.</p>
+              <a href="#branches" className="hero-btn-primary">
+                Book Now
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </a>
+            </div>
+          </AnimSection>
+        </div>
+      </section>
     </div>
   );
 }

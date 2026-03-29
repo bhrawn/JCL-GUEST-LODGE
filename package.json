@@ -10,8 +10,8 @@
     "build": "cd client && npm install && npm run build"
   },
   "dependencies": {
-    "express": "^4.21.1",
-    "sql.js": "^1.11.0"
+    "@supabase/supabase-js": "^2.99.3",
+    "express": "^4.21.1"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

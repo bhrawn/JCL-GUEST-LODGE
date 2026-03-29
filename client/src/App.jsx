@@ -6,6 +6,7 @@ import BranchRooms from './pages/BranchRooms';
 import BookingForm from './pages/BookingForm';
 import Confirmation from './pages/Confirmation';
 import PaymentVerify from './pages/PaymentVerify';
+import RoomDetail from './pages/RoomDetail';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 
@@ -17,6 +18,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/branches/:id" element={<BranchRooms />} />
+          <Route path="/rooms/:roomId" element={<RoomDetail />} />
           <Route path="/book/:roomId" element={<BookingForm />} />
           <Route path="/booking/:reference" element={<Confirmation />} />
           <Route path="/payment/verify" element={<PaymentVerify />} />
