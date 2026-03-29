@@ -76,9 +76,9 @@ function DatePickerField({ label, value, onChange, minDate }) {
         {open && (
           <motion.div
             className="bw-cal-popup"
-            initial={{ opacity: 0, y: -10, scale: 0.97 }}
+            initial={{ opacity: 0, y: 10, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.97 }}
+            exit={{ opacity: 0, y: 8, scale: 0.97 }}
             transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
             <div className="bw-cal-header">
@@ -155,9 +155,9 @@ function BranchDropdown({ branches, value, onChange }) {
         {open && (
           <motion.ul
             className="bw-dropdown-menu"
-            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+            initial={{ opacity: 0, y: 8, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+            exit={{ opacity: 0, y: 6, scale: 0.97 }}
             transition={{ duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
             <li
